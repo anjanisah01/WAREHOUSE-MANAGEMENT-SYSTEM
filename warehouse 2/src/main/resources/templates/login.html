@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title th:text="${title}">Enterprise WMS Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0}
+        html,body{height:100%}
+        body{
+            font-family:'Inter',system-ui,sans-serif;
+            color:#fff;
+            background:#000;
+            overflow-x:hidden;
+            -webkit-font-smoothing:antialiased;
+        }
+        a{color:inherit;text-decoration:none}
+
+        /* ── Video Background ── */
+        .video-layer{
+            position:fixed;inset:0;z-index:0;
+            pointer-events:none;overflow:hidden;
+        }
+        .video-layer video{
+            width:100%;height:100%;object-fit:cover;
+            opacity:0;transition:opacity 1.2s ease;
+        }
+        .video-layer video.loaded{opacity:0.45}
+        .video-layer .grad-top{
+            position:absolute;top:0;left:0;right:0;height:40%;
+            background:linear-gradient(to bottom,#000 0%,transparent 100%);
+        }
+        .video-layer .grad-bot{
+            position:absolute;bottom:0;left:0;right:0;height:50%;
+            background:linear-gradient(to top,#000 0%,transparent 100%);
+        }
+        .video-layer .grad-side{
+            position:absolute;inset:0;
+            background:radial-gradient(ellipse at center,transparent 30%,#000 80%);
+        }
+
+        /* ── Fixed Navbar ── */
+        .navbar{
+            position:fixed;top:0;left:0;right:0;z-index:50;
+            display:flex;align-items:center;justify-content:space-between;
+            padding:16px 28px;
+            backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+            background:rgba(0,0,0,0.4);
+            border-bottom:1px solid rgba(255,255,255,0.08);
+        }
+        .nav-brand{
+            font-size:18px;font-weight:600;letter-spacing:-0.03em;
+            cursor:pointer;user-select:none;
+        }
+        .nav-links{display:flex;gap:32px;font-size:14px;font-weight:500}
+        .nav-links span{
+            color:rgba(255,255,255,0.5);cursor:pointer;
+            transition:color .2s;position:relative;
+        }
+        .nav-links span:hover{color:#fff}
+        .nav-links span.active{color:#fff}
+        .nav-links span.active::after{
+            content:'';position:absolute;bottom:-6px;left:0;right:0;
+            height:2px;background:linear-gradient(90deg,#fff,rgba(255,255,255,0.15));
+            border-radius:1px;
+        }
+        .nav-cta{
+            background:linear-gradient(to bottom,#fff,#d4d4d4);
+            color:#000;padding:10px 22px;border-radius:999px;
+            font-size:13px;font-weight:600;border:none;cursor:pointer;
+            transition:opacity .2s;
+        }
+        .nav-cta:hover{opacity:0.88}
+
+        /* ── Stagger Animation ── */
+        @keyframes heroFadeUp{
+            from{opacity:0;transform:translateY(28px)}
+            to{opacity:1;transform:translateY(0)}
+        }
+        .stagger{opacity:0;animation:heroFadeUp .7s cubic-bezier(.16,1,.3,1) forwards}
+        .stagger-1{animation-delay:.15s}
+        .stagger-2{animation-delay:.3s}
+        .stagger-3{animation-delay:.45s}
+        .stagger-4{animation-delay:.6s}
+        .stagger-5{animation-delay:.75s}
+        .stagger-6{animation-delay:.9s}
+
+        /* ── Main Layout ── */
+        .hero-wrap{
+            position:relative;z-index:10;
+            min-height:100vh;display:flex;flex-direction:column;
+            align-items:center;justify-content:center;
+            padding:120px 24px 100px;
+        }
+        .hero-inner{
+            max-width:960px;width:100%;
+            display:flex;flex-direction:column;align-items:center;
+            text-align:center;
+        }
+
+        /* ── Glass Badges ── */
+        .badge-row{
+            display:flex;flex-wrap:wrap;align-items:center;
+            justify-content:center;gap:10px;margin-bottom:36px;
+        }
+        .glass-badge{
+            display:inline-flex;align-items:center;gap:7px;
+            padding:6px 14px;border-radius:999px;
+            background:rgba(255,255,255,0.05);
+            border:1px solid rgba(255,255,255,0.1);
+            backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+            box-shadow:0 0 15px rgba(255,255,255,0.02);
+            font-size:12px;font-weight:500;color:rgba(255,255,255,0.85);
+            letter-spacing:0.02em;
+        }
+        .glass-badge svg{width:14px;height:14px;opacity:.65}
+
+        /* ── Headline ── */
+        .hero-headline{
+            font-size:clamp(36px,7vw,80px);
+            font-weight:500;letter-spacing:-0.035em;
+            line-height:1.06;margin-bottom:28px;
+            color:#fff;
+        }
+
+        /* ── Subtext ── */
+        .hero-sub{
+            font-size:clamp(16px,2vw,20px);
+            color:rgba(255,255,255,0.5);
+            max-width:580px;line-height:1.65;margin-bottom:44px;
+        }
+
+        /* ── Login Glass Card ── */
+        .login-card{
+            width:min(420px,100%);
+            background:rgba(255,255,255,0.04);
+            border:1px solid rgba(255,255,255,0.1);
+            border-radius:24px;padding:32px;
+            backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+            box-shadow:0 24px 80px rgba(0,0,0,0.4);
+            text-align:left;
+        }
+        .login-card h2{
+            font-size:20px;font-weight:600;
+            margin-bottom:4px;letter-spacing:-0.02em;
+        }
+        .login-card .sub{
+            font-size:13px;color:rgba(255,255,255,0.4);
+            margin-bottom:22px;line-height:1.5;
+        }
+
+        .demo-pill{
+            display:flex;align-items:center;gap:10px;
+            background:rgba(255,255,255,0.05);
+            border:1px solid rgba(255,255,255,0.08);
+            border-radius:12px;padding:10px 14px;margin-bottom:20px;
+            font-size:12px;color:rgba(255,255,255,0.6);
+            cursor:pointer;transition:border-color .2s;
+        }
+        .demo-pill:hover{border-color:rgba(255,255,255,0.2)}
+        .demo-pill code{
+            font-family:'Inter',sans-serif;
+            color:rgba(255,255,255,0.9);font-weight:600;
+        }
+        .demo-pill .fill-txt{
+            margin-left:auto;font-size:11px;font-weight:600;
+            color:rgba(255,255,255,0.3);text-transform:uppercase;
+            letter-spacing:.06em;
+        }
+
+        .field{margin-bottom:14px}
+        .field label{
+            display:block;font-size:11px;font-weight:600;
+            color:rgba(255,255,255,0.35);letter-spacing:.06em;
+            text-transform:uppercase;margin-bottom:6px;
+        }
+        .field input{
+            width:100%;padding:12px 14px;border-radius:12px;
+            border:1px solid rgba(255,255,255,0.1);
+            background:rgba(255,255,255,0.04);
+            color:#fff;font-family:'Inter',sans-serif;font-size:14px;
+            transition:border-color .2s,box-shadow .2s;
+        }
+        .field input::placeholder{color:rgba(255,255,255,0.2)}
+        .field input:focus{
+            outline:none;
+            border-color:rgba(255,255,255,0.3);
+            box-shadow:0 0 0 3px rgba(255,255,255,0.04);
+        }
+
+        .btn-row{display:flex;gap:10px;margin-top:20px}
+        .btn-primary{
+            flex:1;padding:13px 20px;border-radius:999px;
+            border:1px solid rgba(255,255,255,0.95);
+            background:transparent;color:#fff;font-family:'Inter',sans-serif;
+            font-size:14px;font-weight:600;cursor:pointer;
+            transition:background .25s,color .25s;
+        }
+        .btn-primary:hover{background:#fff;color:#000}
+        .btn-ghost{
+            padding:13px 20px;border-radius:999px;
+            border:1px solid rgba(255,255,255,0.15);
+            background:transparent;color:rgba(255,255,255,0.6);
+            font-family:'Inter',sans-serif;font-size:14px;font-weight:500;
+            cursor:pointer;transition:background .2s;
+            backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+        }
+        .btn-ghost:hover{background:rgba(255,255,255,0.08)}
+
+        .msg{min-height:20px;margin-top:14px;font-size:12px;font-weight:500}
+        .msg.ok{color:#86efac}
+        .msg.err{color:#fca5a5}
+
+        /* ── Bottom Marquee ── */
+        .marquee{
+            position:fixed;bottom:28px;left:0;right:0;z-index:10;
+            display:flex;flex-wrap:wrap;justify-content:center;
+            align-items:center;gap:40px;
+            opacity:0.3;user-select:none;
+        }
+        .marquee-item{
+            display:flex;align-items:center;gap:8px;
+            font-size:18px;font-weight:700;letter-spacing:-0.04em;
+        }
+        .marquee-item svg{width:22px;height:22px}
+
+        /* ── Responsive ── */
+        @media(max-width:768px){
+            .navbar{padding:12px 18px}
+            .nav-links{display:none}
+            .nav-cta{font-size:12px;padding:8px 16px}
+            .hero-wrap{padding:100px 16px 80px}
+            .login-card{padding:24px}
+            .marquee{gap:24px;bottom:16px}
+            .marquee-item{font-size:14px}
+        }
+    </style>
+</head>
+<body>
+
+<!-- Video Background Layer -->
+<div class="video-layer">
+    <video id="bgVideo" muted autoplay loop playsinline></video>
+    <div class="grad-top"></div>
+    <div class="grad-bot"></div>
+    <div class="grad-side"></div>
+</div>
+
+<!-- Fixed Navbar -->
+<nav class="navbar">
+    <div class="nav-brand">Enterprise WMS</div>
+    <div class="nav-links">
+        <span class="active">Login</span>
+        <span onclick="window.location='/app'">Dashboard</span>
+        <span>Inventory</span>
+        <span>Insights</span>
+    </div>
+    <button class="nav-cta" onclick="window.location='/app'">Open Dashboard</button>
+</nav>
+
+<!-- Hero Content -->
+<div class="hero-wrap">
+    <div class="hero-inner">
+
+        <!-- Glass Badges -->
+        <div class="badge-row stagger stagger-1">
+            <div class="glass-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+                <span>Real-Time Inventory</span>
+            </div>
+            <div class="glass-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                <span>AI-Powered Insights</span>
+            </div>
+            <div class="glass-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+                <span>5 Warehouses Live</span>
+            </div>
+        </div>
+
+        <!-- Headline -->
+        <h1 class="hero-headline stagger stagger-2">
+            Where Warehouse<br/>Intelligence Meets Control
+        </h1>
+
+        <!-- Subtext -->
+        <p class="hero-sub stagger stagger-3">
+            Unify inventory tracking, AI analytics &amp; voice operations.<br/>
+            Monitor stock in real-time. Decide with confidence.
+        </p>
+
+        <!-- Login Card -->
+        <div class="login-card stagger stagger-4">
+            <h2>Sign in to WMS</h2>
+            <p class="sub">Authenticate to access all warehouse modules and live APIs.</p>
+
+            <div class="demo-pill" id="fill-demo">
+                <span>Demo &rarr; <code th:text="${demoUsername}">admin</code> / <code th:text="${demoPassword}">admin123</code></span>
+                <span class="fill-txt">Click to fill</span>
+            </div>
+
+            <form id="login-form">
+                <div class="field">
+                    <label for="username">Username</label>
+                    <input id="username" type="text" placeholder="admin" autocomplete="username" required/>
+                </div>
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input id="password" type="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" autocomplete="current-password" required/>
+                </div>
+                <div class="btn-row">
+                    <button type="submit" class="btn-primary">Sign In</button>
+                    <button type="button" class="btn-ghost" onclick="window.location='/app'">Preview</button>
+                </div>
+                <div id="message" class="msg"></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom Marquee -->
+<div class="marquee stagger stagger-6">
+    <div class="marquee-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+        MUMBAI
+    </div>
+    <div class="marquee-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/></svg>
+        DELHI
+    </div>
+    <div class="marquee-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+        BENGALURU
+    </div>
+    <div class="marquee-item" style="display:none" id="mq-hyd">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+        HYDERABAD
+    </div>
+    <div class="marquee-item" style="display:none" id="mq-chn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/></svg>
+        CHENNAI
+    </div>
+</div>
+
+<script>
+(function(){
+    // ── HLS Video Player ──
+    var video = document.getElementById('bgVideo');
+    var src = 'https://stream.mux.com/9JXDljEVWYwWu01PUkAemafDugK89o01BR6zqJ3aS9u00A.m3u8';
+
+    function onReady(){video.classList.add('loaded')}
+
+    if(typeof Hls !== 'undefined' && Hls.isSupported()){
+        var hls = new Hls({debug:false,enableWorker:true});
+        hls.loadSource(src);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, function(){
+            video.play().catch(function(){});
+            onReady();
+        });
+    } else if(video.canPlayType('application/vnd.apple.mpegurl')){
+        video.src = src;
+        video.addEventListener('loadedmetadata', function(){
+            video.play().catch(function(){});
+            onReady();
+        });
+    } else {
+        // Fallback: just show gradients, no video
+        onReady();
+    }
+
+    // ── Show extra marquee items on wider screens ──
+    if(window.innerWidth > 900){
+        var h = document.getElementById('mq-hyd');
+        var c = document.getElementById('mq-chn');
+        if(h) h.style.display = 'flex';
+        if(c) c.style.display = 'flex';
+    }
+
+    // ── Demo Fill ──
+    document.getElementById('fill-demo').addEventListener('click', function(){
+        document.getElementById('username').value = 'admin';
+        document.getElementById('password').value = 'admin123';
+    });
+
+    // ── Login Form ──
+    var form = document.getElementById('login-form');
+    var msg = document.getElementById('message');
+
+    form.addEventListener('submit', function(e){
+        e.preventDefault();
+        msg.className = 'msg';
+        msg.textContent = 'Signing in\u2026';
+
+        var un = document.getElementById('username').value.trim();
+        var pw = document.getElementById('password').value;
+
+        fetch('/api/auth/login', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({username:un,password:pw})
+        })
+        .then(function(r){
+            if(!r.ok) throw new Error('Invalid credentials.');
+            return r.json();
+        })
+        .then(function(d){
+            localStorage.setItem('wmsToken', d.token);
+            localStorage.setItem('wmsUser', un || 'admin');
+            msg.className = 'msg ok';
+            msg.textContent = 'Authenticated. Redirecting\u2026';
+            window.location.href = '/app';
+        })
+        .catch(function(err){
+            msg.className = 'msg err';
+            msg.textContent = err.message || 'Login failed.';
+        });
+    });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title th:text="${title}">Enterprise WMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+<style>
+:root{--p:#7b39fc;--ph:#8a50ff;--ln:rgba(255,255,255,0.08);--tx:#fff;--ts:rgba(255,255,255,0.7);--tm:rgba(255,255,255,0.4);--bg:#000;--r:#fca5a5;--g:#86efac;--y:#fde68a;--rb:rgba(252,165,165,0.08);--gb:rgba(134,239,172,0.08);--yb:rgba(253,230,138,0.08);--glass:rgba(255,255,255,0.03);--glass-b:rgba(255,255,255,0.06);--glass-s:rgba(0,0,0,0.5)}
+*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}body{font-family:'Inter',sans-serif;color:var(--tx);background:var(--bg);overflow-x:hidden;-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}
+
+/* ── Video Background ── */
+.video-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.video-layer video{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 1.5s ease}
+.video-layer video.loaded{opacity:0.2}
+.video-layer .grad-top{position:absolute;top:0;left:0;right:0;height:30%;background:linear-gradient(to bottom,#000 0%,transparent 100%)}
+.video-layer .grad-bot{position:absolute;bottom:0;left:0;right:0;height:40%;background:linear-gradient(to top,#000 0%,transparent 100%)}
+.video-layer .grad-side{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 20%,#000 75%)}
+
+/* ── Stagger Animations ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.stagger{opacity:0;animation:fadeUp .6s cubic-bezier(.16,1,.3,1) forwards}
+.s1{animation-delay:.1s}.s2{animation-delay:.15s}.s3{animation-delay:.2s}.s4{animation-delay:.25s}
+
+.layout{display:grid;grid-template-columns:240px 1fr;min-height:100vh;position:relative;z-index:1}
+.sidebar{position:sticky;top:0;height:100vh;padding:24px 16px;display:flex;flex-direction:column;gap:6px;background:rgba(0,0,0,0.6);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-right:1px solid var(--ln);overflow-y:auto}
+.sb-logo{display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:18px}
+.sb-logo svg{flex-shrink:0}
+.sb-logo span{font-weight:600;font-size:15px;letter-spacing:-0.02em}
+.sb-sec{font-size:10px;font-weight:700;color:var(--tm);letter-spacing:0.08em;padding:18px 10px 6px;text-transform:uppercase}
+.sb-lk{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;font-size:13px;color:rgba(255,255,255,0.5);cursor:pointer;transition:all .2s;border:none;background:none;width:100%;text-align:left;font-family:'Inter',sans-serif}
+.sb-lk:hover{background:rgba(255,255,255,0.06);color:#fff}
+.sb-lk.on{background:rgba(255,255,255,0.08);color:#fff;font-weight:600;border:1px solid rgba(255,255,255,0.1)}
+.sb-lk svg{width:18px;height:18px;opacity:.5;flex-shrink:0}
+.sb-user{margin-top:auto;padding:14px 12px;border-radius:14px;background:var(--glass);border:1px solid var(--ln);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);display:flex;align-items:center;gap:10px}
+.sb-av{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,rgba(255,255,255,0.15),rgba(255,255,255,0.05));border:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.sb-un{font-size:13px;font-weight:600}
+.sb-ur{font-size:11px;color:var(--tm)}
+.sb-out{margin-left:auto;padding:6px;border-radius:6px;border:none;background:none;color:var(--tm);cursor:pointer;transition:all .2s}
+.sb-out:hover{background:rgba(255,255,255,0.08);color:var(--r)}
+
+.main{padding:28px 32px 48px;overflow-y:auto}
+.pg{display:none}.pg.on{display:block}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;gap:16px;flex-wrap:wrap}
+.topbar h1{font-size:28px;font-weight:700;letter-spacing:-0.03em}
+.tr{display:flex;align-items:center;gap:12px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;font-size:12px;font-weight:600;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.badge-on{background:rgba(134,239,172,0.1);color:var(--g);border:1px solid rgba(134,239,172,0.15)}
+.badge-off{background:rgba(253,230,138,0.1);color:var(--y);border:1px solid rgba(253,230,138,0.15)}
+.dot{width:8px;height:8px;border-radius:50%;background:currentColor;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.card{border:1px solid var(--ln);border-radius:20px;background:rgba(255,255,255,0.03);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);padding:24px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.3)}
+.ch{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.ct{font-size:16px;font-weight:700;letter-spacing:-0.01em}
+.cs{color:var(--tm);font-size:13px;margin-top:2px}
+
+.sr{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.st{padding:20px;border-radius:16px;background:var(--glass);border:1px solid var(--ln);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);transition:border-color .2s}
+.st:hover{border-color:rgba(255,255,255,0.15)}
+.st-l{font-size:11px;color:var(--tm);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.st-v{font-size:34px;font-weight:800;margin-top:8px;line-height:1;letter-spacing:-0.03em}
+.st-f{font-size:12px;color:var(--ts);margin-top:10px}
+
+.g2{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;margin-bottom:16px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px}
+.sk{display:grid;gap:10px}
+.mb16{margin-bottom:16px}
+
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:600px}
+th,td{padding:12px 14px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.05)}
+th{font-size:10px;font-weight:700;color:var(--tm);letter-spacing:.06em;text-transform:uppercase}
+td{font-size:13px;color:rgba(255,255,255,0.8)}
+.mn{font-weight:700}
+
+.ch-p{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600}
+.cr{background:var(--rb);color:var(--r)}
+.cg{background:var(--gb);color:var(--g)}
+.cy{background:var(--yb);color:var(--y)}
+.cd{background:rgba(255,255,255,0.05);color:var(--ts);border:1px solid rgba(255,255,255,0.06)}
+
+.rc{padding:14px 16px;border-radius:14px;background:var(--glass);border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;transition:border-color .2s}
+.rc:hover{border-color:rgba(255,255,255,0.14)}
+.rc .ti{font-size:14px;font-weight:700;letter-spacing:-0.01em}
+.rc .me{font-size:12px;color:var(--ts)}
+
+.pt{width:100%;height:6px;border-radius:999px;background:rgba(255,255,255,0.06);overflow:hidden}
+.pf{height:100%;border-radius:inherit;background:linear-gradient(90deg,rgba(255,255,255,0.5),rgba(255,255,255,0.2))}
+
+.btn{padding:10px 18px;border-radius:999px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all .2s}
+.btn:hover{transform:translateY(-1px)}
+.bp{background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.9);box-shadow:none}
+.bp:hover{background:#fff;color:#000}
+.bs{background:rgba(255,255,255,0.04);color:var(--ts);border:1px solid var(--ln);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.bs:hover{background:rgba(255,255,255,0.08)}
+.bsm{padding:7px 14px;font-size:12px;border-radius:999px}
+
+.inp{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#fff;font-family:'Inter',sans-serif;font-size:13px;transition:border-color .2s,box-shadow .2s}
+.inp:focus{outline:none;border-color:rgba(255,255,255,0.3);box-shadow:0 0 0 3px rgba(255,255,255,0.04)}
+.inp::placeholder{color:rgba(255,255,255,0.2)}
+select.inp{-webkit-appearance:none;appearance:none}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.ff label{display:block;font-size:11px;font-weight:600;color:var(--tm);margin-bottom:5px;letter-spacing:.05em;text-transform:uppercase}
+
+.chatc{display:flex;flex-direction:column;height:calc(100vh - 140px);max-height:700px}
+.chatm{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:8px 0;scroll-behavior:smooth}
+.cb{max-width:80%;padding:14px 18px;border-radius:16px;font-size:14px;line-height:1.6;animation:fi .2s}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.cb.u{align-self:flex-end;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.12);border-bottom-right-radius:4px}
+.cb.a{align-self:flex-start;background:var(--glass);border:1px solid var(--ln);border-bottom-left-radius:4px}
+.cb .thk{color:var(--tm);font-style:italic}
+.cir{display:flex;gap:10px;padding-top:14px;border-top:1px solid var(--ln);margin-top:8px}
+.ci{flex:1}
+
+.ai{display:flex;align-items:flex-start;gap:12px;padding:14px;border-radius:14px;background:var(--glass);border:1px solid rgba(255,255,255,0.06);transition:border-color .2s}
+.ai:hover{border-color:rgba(255,255,255,0.12)}
+.aico{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.aico.low{background:var(--rb)}.aico.exp{background:var(--yb)}.aico.rep{background:rgba(255,255,255,0.06)}
+.abo{flex:1}
+.abo h4{font-size:13px;font-weight:700;margin-bottom:2px;letter-spacing:-0.01em}
+.abo p{font-size:12px;color:var(--ts);line-height:1.5}
+
+.emp{text-align:center;padding:40px;color:var(--tm);font-size:14px}
+
+.mh{display:none;padding:14px 18px;background:rgba(0,0,0,0.6);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--ln);align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.burg{width:36px;height:36px;border-radius:8px;border:1px solid var(--ln);background:none;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+@media(max-width:900px){
+.layout{grid-template-columns:1fr}
+.sidebar{position:fixed;top:0;left:-260px;width:260px;z-index:100;transition:left .25s}
+.sidebar.open{left:0}
+.sbo{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99;display:none}
+.sbo.open{display:block}
+.mh{display:flex}
+.main{padding:16px}
+.sr{grid-template-columns:repeat(2,1fr)}
+.g2,.g3{grid-template-columns:1fr}
+.fr{grid-template-columns:1fr}
+.topbar h1{font-size:22px}
+}
+</style>
+</head>
+<body>
+
+<!-- Video Background Layer -->
+<div class="video-layer">
+<video id="bgVideo" muted autoplay loop playsinline></video>
+<div class="grad-top"></div>
+<div class="grad-bot"></div>
+<div class="grad-side"></div>
+</div>
+
+<div class="mh">
+<button class="burg" id="mmBtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+<span style="font-family:'Manrope',sans-serif;font-weight:700;font-size:15px" th:text="${title}">Enterprise WMS</span>
+<div style="width:36px"></div>
+</div>
+<div class="sbo" id="sbOver"></div>
+
+<div class="layout">
+<aside class="sidebar" id="sb">
+<div class="sb-logo">
+<svg width="26" height="26" viewBox="0 0 28 28" fill="none"><path d="M14 1.75L25.25 8.25V19.75L14 26.25L2.75 19.75V8.25L14 1.75ZM14 5.12L5.67 9.91V18.09L14 22.88L22.33 18.09V9.91L14 5.12ZM10.06 10.44H17.94V12.94H15.31V18.06H12.69V12.94H10.06V10.44Z" fill="white"/></svg>
+<span th:text="${title}">Enterprise WMS</span>
+</div>
+<div class="sb-sec">Main</div>
+<button class="sb-lk on" data-pg="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Overview</button>
+<button class="sb-lk" data-pg="inventory"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4M4 7l8 4M4 7v10l8 4m0-10v10"/></svg>Inventory</button>
+<button class="sb-lk" data-pg="orders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>Orders</button>
+<button class="sb-lk" data-pg="movements"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>Movements</button>
+<div class="sb-sec">Operations</div>
+<button class="sb-lk" data-pg="inbound"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>Inbound (GRN)</button>
+<button class="sb-lk" data-pg="transfer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7h12l-4-4m0 8H4l4 4"/></svg>Transfer</button>
+<button class="sb-lk" data-pg="alerts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>Alerts</button>
+<div class="sb-sec">Intelligence</div>
+<button class="sb-lk" data-pg="chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>AI Chat</button>
+<button class="sb-lk" data-pg="audit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Audit Log</button>
+<div class="sb-user">
+<div class="sb-av" id="uAv">A</div>
+<div><div class="sb-un" id="uNm">admin</div><div class="sb-ur" id="uRl">Admin</div></div>
+<button class="sb-out" id="logoutBtn" title="Sign out"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4m7 14l5-5-5-5m5 5H9"/></svg></button>
+</div>
+</aside>
+
+<div class="main">
+
+<!-- OVERVIEW -->
+<div class="pg on" id="p-overview">
+<div class="topbar"><h1>Dashboard</h1><div class="tr"><span class="badge badge-off" id="liveS"><span class="dot"></span>Connecting</span></div></div>
+<div class="sr" id="sR"></div>
+<div class="g2 mb16">
+<div class="card"><div class="ch"><div><div class="ct">Warehouse Coverage</div><div class="cs" id="whC"></div></div></div><div class="sk" id="whL"></div></div>
+<div class="card"><div class="ch"><div><div class="ct">Recent Activity</div><div class="cs">Last 8 movements</div></div></div><div class="sk" id="mvL"></div></div>
+</div>
+<div class="card mb16"><div class="ch"><div><div class="ct">Inventory Snapshot</div><div class="cs">Top items by quantity</div></div><div style="display:flex;gap:8px" id="iCh"></div></div><div class="tw"><table><thead><tr><th>SKU</th><th>Product</th><th>Warehouse</th><th>Zone</th><th>Qty</th><th>Reserved</th><th>Status</th><th>Expiry</th></tr></thead><tbody id="iT"></tbody></table></div></div>
+<div class="g3">
+<div class="card"><div class="ct" style="margin-bottom:12px">Fast Movers</div><div class="sk" id="fL"></div></div>
+<div class="card"><div class="ct" style="margin-bottom:12px">Slow Movers</div><div class="sk" id="sL"></div></div>
+<div class="card"><div class="ct" style="margin-bottom:12px">Dead Stock</div><div class="sk" id="dL"></div></div>
+</div>
+</div>
+
+<!-- INVENTORY -->
+<div class="pg" id="p-inventory">
+<div class="topbar"><h1>Inventory</h1><div class="tr"><button class="btn bs bsm" id="iRef">Refresh</button></div></div>
+<div class="card"><div class="ch"><div><div class="ct">Full Stock Register</div><div class="cs" id="iFc"></div></div></div><div class="tw"><table><thead><tr><th>Barcode</th><th>SKU</th><th>Product</th><th>Warehouse</th><th>Location</th><th>Lot</th><th>Qty</th><th>Reserved</th><th>Available</th><th>Reorder</th><th>Status</th><th>Expiry</th></tr></thead><tbody id="iFt"></tbody></table></div></div>
+</div>
+
+<!-- ORDERS -->
+<div class="pg" id="p-orders">
+<div class="topbar"><h1>Orders &amp; Picking</h1></div>
+<div class="g2">
+<div class="card">
+<div class="ct" style="margin-bottom:14px">Create Sales Order</div>
+<div class="fr"><div class="ff"><label>Order No</label><input class="inp" id="oNo" placeholder="SO-001"/></div><div class="ff"><label>Warehouse</label><select class="inp" id="oWh"></select></div></div>
+<div id="oLns"><div class="fr"><div class="ff"><label>SKU</label><input class="inp o-sk" placeholder="SKU-1001"/></div><div class="ff"><label>Qty</label><input class="inp o-qt" type="number" min="1" value="10"/></div></div></div>
+<div style="display:flex;gap:8px;margin-top:8px"><button class="btn bs bsm" id="addLn">+ Add Line</button><button class="btn bp bsm" id="subOrd">Create Order</button></div>
+<div id="oMsg" style="margin-top:10px;font-size:12px"></div>
+</div>
+<div class="card">
+<div class="ct" style="margin-bottom:14px">Active Picking Tasks</div>
+<div class="sk" id="pL"></div>
+</div>
+</div>
+</div>
+
+<!-- MOVEMENTS -->
+<div class="pg" id="p-movements">
+<div class="topbar"><h1>Movement History</h1><div class="tr"><button class="btn bs bsm" id="mRef">Refresh</button></div></div>
+<div class="card"><div class="tw"><table><thead><tr><th>Time</th><th>Type</th><th>Product</th><th>Qty</th><th>From</th><th>To</th><th>Ref</th><th>Operator</th></tr></thead><tbody id="mFt"></tbody></table></div></div>
+</div>
+
+<!-- INBOUND -->
+<div class="pg" id="p-inbound">
+<div class="topbar"><h1>Goods Receipt</h1></div>
+<div class="card" style="max-width:600px">
+<div class="ct" style="margin-bottom:14px">Receive Goods (GRN)</div>
+<div class="fr"><div class="ff"><label>Barcode</label><input class="inp" id="gBc" placeholder="8901000000011"/></div><div class="ff"><label>Warehouse</label><select class="inp" id="gWh"></select></div></div>
+<div class="fr"><div class="ff"><label>Lot No</label><input class="inp" id="gLt" placeholder="LOT-2026-04"/></div><div class="ff"><label>Expiry Date</label><input class="inp" id="gEx" type="date"/></div></div>
+<div class="fr"><div class="ff"><label>Quantity</label><input class="inp" id="gQt" type="number" min="1" value="50"/></div><div class="ff"><label>GRN Number</label><input class="inp" id="gNr" placeholder="GRN-001"/></div></div>
+<button class="btn bp" id="subGrn" style="margin-top:8px">Receive Goods</button>
+<div id="gMsg" style="margin-top:10px;font-size:12px"></div>
+</div>
+</div>
+
+<!-- TRANSFER -->
+<div class="pg" id="p-transfer">
+<div class="topbar"><h1>Inter-Warehouse Transfer</h1></div>
+<div class="card" style="max-width:600px">
+<div class="ct" style="margin-bottom:14px">Transfer Stock</div>
+<div class="fr"><div class="ff"><label>From Warehouse</label><select class="inp" id="tFr"></select></div><div class="ff"><label>To Warehouse</label><select class="inp" id="tTo"></select></div></div>
+<div class="fr"><div class="ff"><label>SKU</label><input class="inp" id="tSk" placeholder="SKU-1001"/></div><div class="ff"><label>Quantity</label><input class="inp" id="tQt" type="number" min="1" value="10"/></div></div>
+<button class="btn bp" id="subTf" style="margin-top:8px">Execute Transfer</button>
+<div id="tMsg" style="margin-top:10px;font-size:12px"></div>
+</div>
+</div>
+
+<!-- ALERTS -->
+<div class="pg" id="p-alerts">
+<div class="topbar"><h1>Alerts</h1><div class="tr"><button class="btn bp bsm" id="runR">Run Rule Engine</button></div></div>
+<div class="card"><div class="sk" id="aL"><div class="emp">Loading alerts...</div></div></div>
+</div>
+
+<!-- AI CHAT -->
+<div class="pg" id="p-chat">
+<div class="topbar"><h1>AI Chat</h1><div class="tr"><span class="ch-p cd" id="llmS">GPT-4o mini</span></div></div>
+<div class="card">
+<div class="chatc">
+<div class="chatm" id="cMs">
+<div class="cb a">Hello! I am your WMS AI assistant. Ask me about inventory, expiring products, low stock, warehouse status, or any warehouse operation.</div>
+</div>
+<div class="cir">
+<input class="inp ci" id="cIn" placeholder="Ask about low stock, expiry, warehouse status..." autocomplete="off"/>
+<button class="btn bp" id="cSd">Send</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- AUDIT -->
+<div class="pg" id="p-audit">
+<div class="topbar"><h1>Audit Log</h1><div class="tr"><button class="btn bs bsm" id="aRef">Refresh</button></div></div>
+<div class="card"><div class="tw"><table><thead><tr><th>Time</th><th>User</th><th>Method</th><th>Path</th><th>Status</th></tr></thead><tbody id="auT"></tbody></table></div></div>
+</div>
+
+</div>
+</div>
+
+<script th:inline="javascript">
+var SI=/*[[${inventoryData}]]*/[];
+var SM=/*[[${movementData}]]*/[];
+var SW=/*[[${warehouses}]]*/[];
+</script>
+<script>
+(function(){
+'use strict';
+var $=function(i){return document.getElementById(i)};
+var tk=function(){return localStorage.getItem('wmsToken')||''};
+var hd=function(){return{Authorization:'Bearer '+tk(),'Content-Type':'application/json'}};
+var esc=function(s){var d=document.createElement('div');d.textContent=String(s!=null?s:'');return d.innerHTML};
+var td=function(){return new Date()};
+var dt=function(d){var v=new Date(d);return isNaN(v)?999:Math.ceil((v-td())/864e5)};
+var fD=function(s){if(!s)return'--';try{return new Date(s).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}catch(e){return s}};
+
+var inv=[],mvs=[],whs=[],als=[],cls={},pks=[];
+var usr=localStorage.getItem('wmsUser')||'admin';
+
+function nI(i){return{barcode:i.id||i.barcode||'N/A',sku:i.sku||'N/A',name:i.name||'Unknown',qty:+(i.qty!=null?i.qty:i.quantity!=null?i.quantity:0),res:+(i.reservedQty!=null?i.reservedQty:i.reserved_qty!=null?i.reserved_qty:i.reserved!=null?i.reserved:0),min:+(i.min!=null?i.min:i.reorderLevel!=null?i.reorderLevel:10),wh:typeof i.warehouse==='string'?i.warehouse:(i.warehouse&&i.warehouse.code)||'N/A',zone:i.zone||(i.location&&typeof i.location==='object'?i.location.zone:'')||'--',loc:typeof i.location==='string'?i.location:(i.location&&typeof i.location==='object'?[i.location.zone,i.location.rack,i.location.shelf,i.location.bin].filter(Boolean).join('-'):'--'),lot:i.lotNo||i.lot||(i.lotBatch&&i.lotBatch.lotNo)||'--',exp:i.expiry||(i.lotBatch&&i.lotBatch.expiryDate)||'',cat:i.category||(i.product&&i.product.velocityClass)||'STD'}}
+function nM(m){var rt=String(m.type||m.movementType||'INFO').toUpperCase();return{time:m.time||fD(m.eventTime),type:rt,product:typeof m.product==='string'?m.product:(m.product&&m.product.name)||'Unknown',qty:+(m.qty!=null?m.qty:m.quantity!=null?m.quantity:0),user:m.user||m.performedBy||'system',from:m.fromLocation?[m.fromLocation.zone,m.fromLocation.rack].filter(Boolean).join('-'):(m.from||'--'),to:m.toLocation?[m.toLocation.zone,m.toLocation.rack].filter(Boolean).join('-'):(m.to||'--'),ref:m.referenceNo||m.ref||'--'}}
+
+async function api(p,o){var r=await fetch('/api/wms'+p,Object.assign({headers:hd()},o||{}));if(!r.ok){var t=await r.text().catch(function(){return r.statusText});throw new Error(t)}var c=r.headers.get('content-type')||'';return c.includes('json')?r.json():r.text()}
+
+async function load(){
+try{
+var res=await Promise.all([api('/inventory/stock?size=200'),api('/inventory/movements?size=100'),api('/alerts'),api('/analytics/movement-classification'),api('/outbound/picking-tasks')]);
+inv=(res[0].content||res[0]||[]).map(nI);
+mvs=(res[1].content||res[1]||[]).map(nM);
+als=res[2]||[];cls=res[3]||{};pks=res[4]||[];
+whs=[].concat(new Set(inv.map(function(i){return i.wh}))).filter(function(v,i,a){return a.indexOf(v)===i}).sort();
+$('liveS').className='badge badge-on';$('liveS').innerHTML='<span class="dot"></span>Live';
+}catch(e){
+inv=(SI||[]).map(nI);mvs=(SM||[]).map(nM);whs=SW||[];
+$('liveS').className='badge badge-off';$('liveS').innerHTML='<span class="dot"></span>Preview';
+}
+rAll();
+}
+
+function rAll(){rSt();rWh();rMv();rIT();rCl();rFI();rFM();rAl();rPk();pSel()}
+
+function rSt(){
+var lo=inv.filter(function(i){return i.qty<i.min});
+var ex=inv.filter(function(i){return dt(i.exp)<=30});
+var tt=inv.reduce(function(s,i){return s+i.qty},0);
+var c=[{l:'Active SKUs',v:inv.length,f:whs.length+' warehouses'},{l:'Total Units',v:tt.toLocaleString(),f:'Across all locations'},{l:'Low Stock',v:lo.length,f:lo.length?'Restock needed':'All healthy',c:lo.length?'r':'g'},{l:'Expiring 30d',v:ex.length,f:ex.length?'FEFO advised':'No urgency',c:ex.length?'y':'g'}];
+$('sR').innerHTML=c.map(function(x){return'<div class="st"><div class="st-l">'+x.l+'</div><div class="st-v"'+(x.c?' style="color:var(--'+x.c+')"':'')+'>'+x.v+'</div><div class="st-f">'+x.f+'</div></div>'}).join('');
+}
+
+function rWh(){
+var g={};inv.forEach(function(i){if(!g[i.wh])g[i.wh]={u:0,s:0};g[i.wh].u+=i.qty;g[i.wh].s++});
+var k=Object.keys(g).sort();var mx=Math.max.apply(null,k.map(function(x){return g[x].u}).concat([1]));
+$('whC').textContent=k.length+' active warehouses';
+$('whL').innerHTML=k.map(function(x){var w=Math.max(8,Math.round(g[x].u/mx*100));return'<div class="rc"><div><div class="ti">'+esc(x)+'</div><div class="me">'+g[x].s+' SKUs, '+g[x].u.toLocaleString()+' units</div></div><div style="width:120px"><div class="pt"><div class="pf" style="width:'+w+'%"></div></div></div></div>'}).join('')||'<div class="emp">No warehouses</div>';
+}
+
+function rMv(){
+$('mvL').innerHTML=mvs.slice(0,8).map(function(m){var o=m.type.includes('OUT')||m.type==='PICK'||m.type==='SHIP';return'<div class="rc"><div><div class="ti">'+esc(m.product)+'</div><div class="me">Qty '+m.qty+' by '+esc(m.user)+'</div></div><div style="display:flex;gap:6px"><span class="ch-p '+(o?'cr':'cg')+'">'+esc(m.type)+'</span><span class="ch-p cd">'+esc(m.time)+'</span></div></div>'}).join('')||'<div class="emp">No movements</div>';
+}
+
+function rIT(){
+var lo=inv.filter(function(i){return i.qty<i.min});var ex=inv.filter(function(i){return dt(i.exp)<=30});
+$('iCh').innerHTML='<span class="ch-p cd">'+inv.length+' items</span>'+(lo.length?'<span class="ch-p cr">'+lo.length+' low</span>':'')+(ex.length?'<span class="ch-p cy">'+ex.length+' expiring</span>':'');
+$('iT').innerHTML=inv.slice(0,12).map(function(i){var il=i.qty<i.min;var ed=dt(i.exp);var ec=ed<=7?'cr':ed<=30?'cy':'cg';return'<tr><td class="mn">'+esc(i.sku)+'</td><td>'+esc(i.name)+'</td><td>'+esc(i.wh)+'</td><td>'+esc(i.zone)+'</td><td class="mn">'+i.qty+'</td><td class="mn">'+i.res+'</td><td><span class="ch-p '+(il?'cr':'cg')+'">'+(il?'Low':'OK')+'</span></td><td><span class="ch-p '+ec+'">'+(ed<0?'Expired':ed+'d')+'</span></td></tr>'}).join('');
+}
+
+function rCl(){
+function rl(id,a){$(id).innerHTML=(a||[]).map(function(s){return'<div class="rc"><div class="ti" style="font-size:13px">'+esc(s)+'</div></div>'}).join('')||'<div class="emp" style="padding:16px">None</div>'}
+rl('fL',cls.fastMoving);rl('sL',cls.slowMoving);rl('dL',cls.deadStock);
+}
+
+function rFI(){
+$('iFc').textContent=inv.length+' records';
+$('iFt').innerHTML=inv.map(function(i){var av=i.qty-i.res;var il=i.qty<i.min;var ed=dt(i.exp);var ec=ed<=7?'cr':ed<=30?'cy':'cg';return'<tr><td class="mn">'+esc(i.barcode)+'</td><td class="mn">'+esc(i.sku)+'</td><td>'+esc(i.name)+'</td><td>'+esc(i.wh)+'</td><td>'+esc(i.loc)+'</td><td>'+esc(i.lot)+'</td><td class="mn">'+i.qty+'</td><td class="mn">'+i.res+'</td><td class="mn">'+av+'</td><td class="mn">'+i.min+'</td><td><span class="ch-p '+(il?'cr':'cg')+'">'+(il?'Low':'OK')+'</span></td><td><span class="ch-p '+ec+'">'+(ed<0?'Expired':ed+'d')+'</span></td></tr>'}).join('');
+}
+
+function rFM(){
+$('mFt').innerHTML=mvs.map(function(m){var o=m.type.includes('OUT')||m.type==='PICK'||m.type==='SHIP';return'<tr><td>'+esc(m.time)+'</td><td><span class="ch-p '+(o?'cr':'cg')+'">'+esc(m.type)+'</span></td><td>'+esc(m.product)+'</td><td class="mn">'+m.qty+'</td><td>'+esc(m.from)+'</td><td>'+esc(m.to)+'</td><td>'+esc(m.ref)+'</td><td>'+esc(m.user)+'</td></tr>'}).join('');
+}
+
+function rAl(){
+if(!als.length){$('aL').innerHTML='<div class="emp">No active alerts. Run the rule engine to check.</div>';return}
+$('aL').innerHTML=als.map(function(a){var ic=a.alertType==='LOW_STOCK'?'&#128230;':a.alertType==='EXPIRY'?'&#9200;':'&#128260;';var cl=a.alertType==='LOW_STOCK'?'low':a.alertType==='EXPIRY'?'exp':'rep';return'<div class="ai"><div class="aico '+cl+'">'+ic+'</div><div class="abo"><h4>'+esc(a.alertType)+' <span class="ch-p '+(a.severity==='HIGH'?'cr':'cy')+'">'+esc(a.severity||'MEDIUM')+'</span></h4><p>'+esc(a.message)+'</p></div><button class="btn bs bsm" onclick="window._ra('+a.id+',this)">Resolve</button></div>'}).join('');
+}
+window._ra=async function(id,b){try{await api('/alerts/'+id+'/resolve',{method:'POST'});b.closest('.ai').remove();als=als.filter(function(a){return a.id!==id});if(!als.length)$('aL').innerHTML='<div class="emp">All resolved</div>'}catch(e){alert(e.message)}};
+
+function rPk(){
+if(!pks.length){$('pL').innerHTML='<div class="emp">No active picking tasks</div>';return}
+$('pL').innerHTML=pks.map(function(p){var sc=p.status==='COMPLETED'?'cg':p.status==='IN_PROGRESS'?'cy':'cd';return'<div class="rc"><div><div class="ti">Task #'+p.id+'</div><div class="me">Worker: '+esc(p.workerUsername||'--')+' | '+esc(p.strategy||'SINGLE')+'</div></div><div style="display:flex;gap:6px"><span class="ch-p '+sc+'">'+esc(p.status)+'</span><span class="ch-p cd">'+p.progressPct+'%</span></div></div>'}).join('');
+}
+
+function pSel(){
+var o=whs.map(function(w){return'<option value="'+esc(w)+'">'+esc(w)+'</option>'}).join('');
+['oWh','gWh','tFr','tTo'].forEach(function(id){if($(id))$(id).innerHTML=o});
+}
+
+/* Navigation */
+document.querySelectorAll('.sb-lk[data-pg]').forEach(function(b){
+b.addEventListener('click',function(){
+document.querySelectorAll('.sb-lk').forEach(function(x){x.classList.remove('on')});b.classList.add('on');
+document.querySelectorAll('.pg').forEach(function(x){x.classList.remove('on')});$('p-'+b.dataset.pg).classList.add('on');
+$('sb').classList.remove('open');$('sbOver').classList.remove('open');
+});
+});
+$('mmBtn').addEventListener('click',function(){$('sb').classList.add('open');$('sbOver').classList.add('open')});
+$('sbOver').addEventListener('click',function(){$('sb').classList.remove('open');$('sbOver').classList.remove('open')});
+$('logoutBtn').addEventListener('click',function(){localStorage.removeItem('wmsToken');localStorage.removeItem('wmsUser');window.location.href='/login'});
+$('uNm').textContent=usr;$('uAv').textContent=usr.charAt(0).toUpperCase();
+
+/* Forms */
+$('subGrn').addEventListener('click',async function(){
+var m=$('gMsg');m.textContent='Submitting...';m.style.color='var(--ts)';
+try{await api('/inbound/grn',{method:'POST',body:JSON.stringify({barcode:$('gBc').value,warehouseCode:$('gWh').value,lotNo:$('gLt').value,expiryDate:$('gEx').value,quantity:+$('gQt').value,grnNo:$('gNr').value,performedBy:usr})});m.style.color='var(--g)';m.textContent='Goods received!';load()}catch(e){m.style.color='var(--r)';m.textContent=e.message}
+});
+
+$('addLn').addEventListener('click',function(){$('oLns').insertAdjacentHTML('beforeend','<div class="fr"><div class="ff"><label>SKU</label><input class="inp o-sk" placeholder="SKU-1001"/></div><div class="ff"><label>Qty</label><input class="inp o-qt" type="number" min="1" value="10"/></div></div>')});
+$('subOrd').addEventListener('click',async function(){
+var m=$('oMsg');m.textContent='Creating...';m.style.color='var(--ts)';
+try{var sk=document.querySelectorAll('.o-sk'),qt=document.querySelectorAll('.o-qt'),li=[];for(var i=0;i<sk.length;i++){if(sk[i].value)li.push({sku:sk[i].value,quantity:+qt[i].value})}
+await api('/outbound/order',{method:'POST',body:JSON.stringify({orderNo:$('oNo').value,warehouseCode:$('oWh').value,lines:li})});m.style.color='var(--g)';m.textContent='Order created!';load()}catch(e){m.style.color='var(--r)';m.textContent=e.message}
+});
+
+$('subTf').addEventListener('click',async function(){
+var m=$('tMsg');m.textContent='Transferring...';m.style.color='var(--ts)';
+try{await api('/inventory/transfer',{method:'POST',body:JSON.stringify({fromWarehouseCode:$('tFr').value,toWarehouseCode:$('tTo').value,sku:$('tSk').value,quantity:+$('tQt').value,performedBy:usr})});m.style.color='var(--g)';m.textContent='Transfer complete!';load()}catch(e){m.style.color='var(--r)';m.textContent=e.message}
+});
+
+$('runR').addEventListener('click',async function(){try{var r=await api('/analytics/run-rules',{method:'POST'});als=r||[];rAl()}catch(e){alert(e.message)}});
+$('iRef').addEventListener('click',function(){load()});
+$('mRef').addEventListener('click',function(){load()});
+$('aRef').addEventListener('click',async function(){
+try{var r=await api('/audit/logs?size=100');var l=r.content||r||[];
+$('auT').innerHTML=l.map(function(x){return'<tr><td>'+esc(fD(x.eventTime))+'</td><td>'+esc(x.username||'--')+'</td><td><span class="ch-p cd">'+esc(x.method||'--')+'</span></td><td style="font-size:12px">'+esc(x.path||'--')+'</td><td class="mn">'+esc(String(x.statusCode||'--'))+'</td></tr>'}).join('')}catch(e){$('auT').innerHTML='<tr><td colspan="5" class="emp">'+esc(e.message)+'</td></tr>'}
+});
+
+/* AI Chat — client-side intent engine (API call optional enhancement) */
+function detectIntent(tl){
+  if(tl.match(/expir|expire|expiry|best.?before/)){var d=30;if(/\b7\b/.test(tl))d=7;else if(/14|two.?week/.test(tl))d=14;else if(/60|two.?month/.test(tl))d=60;else if(/90/.test(tl))d=90;return{action:'GET_EXPIRING_PRODUCTS',days:d,sku:null,warehouseCode:null}}
+  if(tl.match(/low.?stock|reorder|below.*level|running.?low|out.?of.?stock/))return{action:'GET_LOW_STOCK',sku:null,warehouseCode:null};
+  if(tl.match(/dead.?stock|no.?mov|not.?mov|slow.?mov|fast.?mov|velocity/))return{action:'GET_DEAD_STOCK',sku:null,warehouseCode:null};
+  if(tl.match(/alert|warning|critical|issue|problem/))return{action:'GET_ALERTS',sku:null,warehouseCode:null};
+  if(tl.match(/\bpick|task|worker|wave/))return{action:'GET_PICKING_TASKS',sku:null,warehouseCode:null};
+  if(tl.match(/movement|activity|recent|transfer|history|received|shipped|ship/))return{action:'GET_MOVEMENTS',sku:null,warehouseCode:null};
+  if(tl.match(/warehouse|hub|depot|centre|center|status|overview/))return{action:'GET_WAREHOUSE_STATUS',sku:null,warehouseCode:null};
+  if(tl.match(/order|fulfil|dispatch|outbound/))return{action:'GET_ORDERS',sku:null,warehouseCode:null};
+  if(tl.match(/inventor|stock|sku|total|unit|product|how.?many|how.?much|summar/))return{action:'GET_INVENTORY_SUMMARY',sku:null,warehouseCode:null};
+  if(tl.match(/help|what.?can|capabilit|command/))return{action:'HELP',sku:null,warehouseCode:null};
+  return{action:'UNKNOWN',sku:null,warehouseCode:null};
+}
+async function chat(t){
+if(!t.trim())return;
+aBub(t,'u');$('cIn').value='';
+var el=aBub('<span class="thk">Thinking...</span>','a');
+var tl=t.toLowerCase();
+/* Try backend AI parser; if unavailable fall back to client-side detection */
+var ac;
+try{ac=await api('/llm/parse-action',{method:'POST',body:JSON.stringify({text:t})})}
+catch(e){ac=detectIntent(tl)}
+/* SKU-specific lookup: "how much SKU-1001?" */
+var skuM=t.match(/SKU-?(\d+)/i);
+if(skuM){
+  var sk='SKU-'+skuM[1];
+  var rows=inv.filter(function(i){return i.sku.toUpperCase()===sk.toUpperCase()});
+  var resp='';
+  if(rows.length){var tot=rows.reduce(function(s,i){return s+i.qty},0);var res=rows.reduce(function(s,i){return s+i.res},0);resp='<strong>'+esc(rows[0].name)+'</strong> ('+esc(sk)+')<br><br>On-hand: <strong>'+tot.toLocaleString()+'</strong> | Reserved: '+res+'<br><br>'+rows.map(function(i){var ed=dt(i.exp);var ec=ed<=0?'var(--r)':ed<=30?'#f90':'var(--g)';return'&#8226; '+esc(i.wh)+' &mdash; Qty: '+i.qty+' | Lot: '+esc(i.lot)+' | Exp: <span style="color:'+ec+'">'+(ed<=0?'Expired':ed+'d')+'</span>'}).join('<br>')}
+  else resp='No inventory found for <strong>'+esc(sk)+'</strong>.';
+  el.innerHTML=resp;$('cMs').scrollTop=$('cMs').scrollHeight;return;
+}
+/* Warehouse-specific lookup: "what is in WH-MUM-01?" */
+var whM=t.match(/WH-[A-Z]{2,5}-\d+/i);
+if(whM){
+  var wh=whM[0].toUpperCase();
+  var rows=inv.filter(function(i){return i.wh.toUpperCase()===wh});
+  var resp='';
+  if(rows.length){var tot=rows.reduce(function(s,i){return s+i.qty},0);var lo=rows.filter(function(i){return i.qty<i.min}).length;var ex2=rows.filter(function(i){return dt(i.exp)<=30&&dt(i.exp)>0}).length;resp='<strong>'+esc(wh)+'</strong> &mdash; '+rows.length+' SKUs, '+tot.toLocaleString()+' units'+(lo?' | <span style="color:var(--r)">'+lo+' low</span>':'')+(ex2?' | <span style="color:#f90">'+ex2+' expiring</span>':'')+'<br><br>'+rows.map(function(i){return'&#8226; <strong>'+esc(i.sku)+'</strong> '+esc(i.name)+' &mdash; '+i.qty+'/'+i.min+(i.qty<i.min?' <span style="color:var(--r)">LOW</span>':'')}).join('<br>')}
+  else resp='No data found for <strong>'+esc(wh)+'</strong>.';
+  el.innerHTML=resp;$('cMs').scrollTop=$('cMs').scrollHeight;return;
+}
+var resp='';
+var action=ac.action||'';
+if(action==='GET_EXPIRING_PRODUCTS'||tl.match(/expir/)){
+  var d=ac.days||30;
+  var expired=inv.filter(function(i){return dt(i.exp)<=0});
+  var ex=inv.filter(function(i){return dt(i.exp)>0&&dt(i.exp)<=d});
+  resp='<strong>&#9200; Expiry Report</strong><br><br>';
+  if(expired.length)resp+='<span style="color:var(--r)"><strong>'+expired.length+' EXPIRED:</strong></span><br>'+expired.map(function(i){return'&#8226; '+esc(i.name)+' ('+esc(i.sku)+') &mdash; '+esc(i.wh)+', Qty: '+i.qty}).join('<br>')+'<br><br>';
+  resp+=ex.length?'Expiring within <strong>'+d+' days</strong> ('+ex.length+'):<br>'+ex.map(function(i){return'&#8226; <strong>'+esc(i.name)+'</strong> ('+esc(i.sku)+') &mdash; '+dt(i.exp)+'d left | Qty: '+i.qty+' | WH: '+esc(i.wh)}).join('<br>'):'&#9989; No products expiring within '+d+' days.';
+}else if(action==='GET_LOW_STOCK'){
+  var lo=inv.filter(function(i){return i.qty<i.min});
+  resp=lo.length?'<strong>&#9888; '+lo.length+' Low-Stock Items</strong><br><br>'+lo.map(function(i){var pct=i.min>0?Math.round(i.qty/i.min*100):100;return'&#8226; <strong>'+esc(i.name)+'</strong> ('+esc(i.sku)+') &mdash; <span style="color:var(--r)">'+i.qty+'</span>/'+i.min+' ('+pct+'%) | WH: '+esc(i.wh)}).join('<br>'):'&#9989; All stock above reorder levels.';
+}else if(action==='GET_WAREHOUSE_STATUS'){
+  resp='<strong>&#127981; Warehouse Status</strong><br><br>';
+  var g={};inv.forEach(function(i){if(!g[i.wh])g[i.wh]={u:0,sk:new Set(),lo:0,ex:0};g[i.wh].u+=i.qty;g[i.wh].sk.add(i.sku);if(i.qty<i.min)g[i.wh].lo++;if(dt(i.exp)<=30&&dt(i.exp)>0)g[i.wh].ex++});
+  Object.keys(g).sort().forEach(function(k){resp+='<strong>'+esc(k)+'</strong> &mdash; '+g[k].sk.size+' SKUs, '+g[k].u.toLocaleString()+' units'+(g[k].lo?' | <span style="color:var(--r)">'+g[k].lo+' low</span>':'')+(g[k].ex?' | <span style="color:#f90">'+g[k].ex+' expiring</span>':'')+'<br>'});
+}else if(action==='GET_ALERTS'){
+  var hi=als.filter(function(a){return a.severity==='HIGH'}).length;
+  resp=als.length?'<strong>&#9888; '+als.length+' Active Alert'+(als.length>1?'s':'')+(hi?' &mdash; <span style="color:var(--r)">'+hi+' HIGH</span>':'')+'</strong><br><br>'+als.map(function(a){var c=a.severity==='HIGH'?'var(--r)':a.severity==='MEDIUM'?'#f90':'var(--ts)';return'<span style="color:'+c+'">&#9679;</span> <strong>'+esc(a.alertType)+'</strong> &mdash; '+esc(a.message)}).join('<br>'):'&#9989; No active alerts.';
+}else if(action==='GET_MOVEMENTS'){
+  resp='<strong>&#128260; Recent Movements</strong> ('+mvs.length+' total)<br><br>'+mvs.slice(0,10).map(function(m){var o=m.type==='PICK'||m.type==='SHIP'||m.type.indexOf('OUT')>=0;return'<span style="color:'+(o?'var(--r)':'var(--g)')+'">'+esc(m.type)+'</span> &mdash; <strong>'+esc(m.product)+'</strong> Qty: '+m.qty+' | '+esc(m.ref)+' | '+esc(m.user)}).join('<br>');
+}else if(action==='GET_DEAD_STOCK'){
+  var dead=cls.deadStock||[];var slow=cls.slowMoving||[];var fast=cls.fastMoving||[];
+  resp='<strong>&#128260; Stock Velocity</strong><br><br>';
+  resp+='&#128994; Fast-Moving ('+fast.length+'): '+(fast.length?fast.slice(0,8).join(', ')+(fast.length>8?'&hellip;':''):'None')+'<br><br>';
+  resp+='&#128993; Slow-Moving ('+slow.length+'): '+(slow.length?slow.slice(0,8).join(', ')+(slow.length>8?'&hellip;':''):'None')+'<br><br>';
+  resp+='&#128308; Dead Stock ('+dead.length+'): '+(dead.length?dead.join(', '):'None');
+}else if(action==='GET_PICKING_TASKS'||tl.match(/\bpick|task|worker/)){
+  var op=pks.filter(function(p){return p.status!=='COMPLETED'});
+  var done=pks.filter(function(p){return p.status==='COMPLETED'});
+  resp='<strong>&#128203; Picking Tasks</strong><br><br>';
+  resp+=op.length?'<strong>'+op.length+' Open:</strong><br>'+op.map(function(p){var cs=p.status==='IN_PROGRESS'?'#f90':'var(--ts)';return'&#8226; Task #'+p.id+' &mdash; <span style="color:'+cs+'">'+esc(p.status)+'</span> '+p.pickingProgressPct+'% | Worker: '+esc(p.workerUsername||'Unassigned')+' | '+esc(p.strategy)}).join('<br>'):'No open picking tasks.';
+  if(done.length)resp+='<br><br>'+done.length+' completed task(s).';
+}else if(action==='GET_ORDERS'){
+  var tot2=inv.reduce(function(s,i){return s+i.qty},0);var res2=inv.reduce(function(s,i){return s+i.res},0);
+  var op2=pks.filter(function(p){return p.status!=='COMPLETED'}).length;
+  resp='<strong>&#128230; Order &amp; Fulfilment</strong><br><br>';
+  resp+='Reserved (open orders): <strong>'+res2.toLocaleString()+'</strong> units<br>';
+  resp+='Available to pick: <strong>'+(tot2-res2).toLocaleString()+'</strong> units<br>';
+  if(pks.length)resp+='Picking tasks: <strong>'+pks.length+'</strong> total / <strong>'+op2+'</strong> open<br>';
+  resp+='<br><em>For full order details, visit the Orders tab.</em>';
+}else if(action==='GET_INVENTORY_SUMMARY'||tl.match(/inventor|total stock|summar/)){
+  var tt=inv.reduce(function(s,i){return s+i.qty},0);var tr=inv.reduce(function(s,i){return s+i.res},0);
+  var lo2=inv.filter(function(i){return i.qty<i.min}).length;var ex3=inv.filter(function(i){return dt(i.exp)<=30&&dt(i.exp)>0}).length;
+  resp='<strong>&#128202; Inventory Summary</strong><br><br>';
+  resp+='&#128230; <strong>'+inv.length+'</strong> active SKUs<br>';
+  resp+='&#128201; <strong>'+tt.toLocaleString()+'</strong> total units on-hand<br>';
+  resp+='&#128274; <strong>'+tr.toLocaleString()+'</strong> reserved units<br>';
+  resp+='&#127981; <strong>'+whs.length+'</strong> warehouses: '+whs.join(', ')+'<br>';
+  if(lo2)resp+='&#9888; <span style="color:var(--r)"><strong>'+lo2+'</strong> SKUs below reorder level</span><br>';
+  if(ex3)resp+='&#9200; <span style="color:#f90"><strong>'+ex3+'</strong> lots expiring within 30 days</span><br>';
+  if(pks.length){var op3=pks.filter(function(p){return p.status!=='COMPLETED'}).length;resp+='&#128203; <strong>'+pks.length+'</strong> picking tasks (<strong>'+op3+'</strong> open)'}
+}else if(action==='HELP'||tl.match(/help|what.?can/)){
+  resp='<strong>&#129302; I can answer questions like:</strong><br><br>&#8226; "Show low stock items"<br>&#8226; "Products expiring in 7 days"<br>&#8226; "Warehouse status overview"<br>&#8226; "Show active alerts"<br>&#8226; "Recent stock movements"<br>&#8226; "Open picking tasks"<br>&#8226; "Dead stock / slow movers"<br>&#8226; "How much SKU-1001 do we have?"<br>&#8226; "What is in WH-MUM-01?"<br>&#8226; "Inventory summary"<br>&#8226; "Order fulfilment status"<br><br>Just ask naturally!';
+}else{
+  var tt2=inv.reduce(function(s,i){return s+i.qty},0);var lo3=inv.filter(function(i){return i.qty<i.min}).length;
+  resp='<strong>&#128202; Quick Overview</strong><br><br>';
+  resp+=inv.length+' SKUs &bull; '+tt2.toLocaleString()+' units &bull; '+whs.length+' warehouses<br>';
+  if(lo3)resp+='<span style="color:var(--r)">&#9888; '+lo3+' items below reorder level</span><br>';
+  if(als.length)resp+='<span style="color:#f90">&#9888; '+als.length+' active alert'+(als.length>1?'s':'')+'</span><br>';
+  resp+='<br><em>Ask about: low stock, expiring products, alerts, movements, picking tasks, warehouse status, orders, or a specific SKU like "SKU-1001".</em>';
+}
+el.innerHTML=resp;
+$('cMs').scrollTop=$('cMs').scrollHeight;
+}
+function aBub(h,r){var d=document.createElement('div');d.className='cb '+(r==='u'?'u':'a');d.innerHTML=h;$('cMs').appendChild(d);$('cMs').scrollTop=$('cMs').scrollHeight;return d}
+$('cSd').addEventListener('click',function(){chat($('cIn').value)});
+$('cIn').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();chat($('cIn').value)}});
+
+load();
+
+// ── HLS Video Player ──
+var video = document.getElementById('bgVideo');
+var src = 'https://stream.mux.com/9JXDljEVWYwWu01PUkAemafDugK89o01BR6zqJ3aS9u00A.m3u8';
+function onReady(){video.classList.add('loaded')}
+if(typeof Hls !== 'undefined' && Hls.isSupported()){
+var h = new Hls({debug:false,enableWorker:true});
+h.loadSource(src);h.attachMedia(video);
+h.on(Hls.Events.MANIFEST_PARSED, function(){video.play().catch(function(){});onReady()});
+} else if(video.canPlayType('application/vnd.apple.mpegurl')){
+video.src = src;
+video.addEventListener('loadedmetadata', function(){video.play().catch(function(){});onReady()});
+} else { onReady() }
+})();
+</script>
+</body>
+</html>

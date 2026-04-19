@@ -1,0 +1,81 @@
+# ──────────────────────────────────────────────────────────
+# WMS Application Configuration
+# ──────────────────────────────────────────────────────────
+
+spring:
+  config:
+    import: optional:file:.env[.properties]      # Load .env file if present (for local dev secrets)
+
+  # ── PostgreSQL datasource ──
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/wms}   # JDBC URL (default: local Postgres)
+    username: ${DB_USER:wms_user}                         # DB username
+    password: ${DB_PASSWORD:wms_password}                  # DB password
+    hikari:                                               # Connection pool settings
+      maximum-pool-size: 10                               # Max connections in pool
+      minimum-idle: 5                                     # Min idle connections kept open
+      connection-timeout: 30000                           # 30s timeout to acquire connection
+      idle-timeout: 600000                                # 10min before idle conn is closed
+      max-lifetime: 1800000                               # 30min max lifetime per connection
+
+  # ── JPA / Hibernate ──
+  jpa:
+    hibernate:
+      ddl-auto: validate        # Schema managed by schema.sql — Hibernate only validates
+    show-sql: false              # Don't log SQL to console
+    properties:
+      hibernate:
+        format_sql: true         # Pretty-print SQL when logging is enabled
+    open-in-view: false          # Disable lazy-loading outside transactions (best practice)
+
+  # ── Thymeleaf server-side templates ──
+  thymeleaf:
+    cache: false                 # Disable caching for live reload during development
+
+# ── Embedded server ──
+server:
+  port: ${SERVER_PORT:8080}      # Default HTTP port
+  compression:
+    enabled: true                # Enable response compression
+    mime-types: application/json,text/html,text/css,application/javascript
+    min-response-size: 1024      # Only compress responses > 1 KB
+
+# ── Custom WMS properties (injected via @Value) ──
+wms:
+
+  # JWT authentication
+  security:
+    jwt-secret: "${JWT_SECRET:change-this-to-a-long-secret-key-for-production-at-least-256-bits}"
+    jwt-expiry-ms: ${JWT_EXPIRY_MS:86400000}              # Token lifetime: 24 hours (ms)
+
+  # Putaway slotting score bonuses (used by PutawayService)
+  slotting:
+    fast-zone-prefix: "A"        # Zone prefix for fast-moving products
+    fast-zone-bonus: 100         # Score bonus for matching fast zone
+    slow-zone-prefix: "C"        # Zone prefix for slow-moving products
+    slow-zone-bonus: 80          # Score bonus for matching slow zone
+    heavy-shelf-suffix: "1"      # Shelf suffix preferred for heavy items (low shelf)
+    heavy-shelf-bonus: 120       # Score bonus for heavy-item shelf match
+    light-shelf-suffix: "3"      # Shelf suffix preferred for light items (high shelf)
+    light-shelf-bonus: 40        # Score bonus for light-item shelf match
+
+  # OpenAI integration (natural language command parsing)
+  openai:
+    api-key: "${OPENAI_API_KEY:}"                         # API key (blank = disabled)
+    model: "gpt-4o-mini"                                  # Model used for intent parsing
+
+  # Voice / speech integration (STT + TTS providers)
+  voice:
+    api-key: "${VOICE_API_KEY:}"                          # Generic voice API key
+    stt-provider: "${STT_PROVIDER:simulated}"             # STT backend: simulated | google | vosk | custom
+    stt-url: "${VOICE_STT_URL:}"                          # Custom STT endpoint URL
+    vosk-model-path: "${VOSK_MODEL_PATH:}"                # Offline Vosk model directory
+    vosk-sample-rate: "${VOSK_SAMPLE_RATE:16000}"         # Vosk audio sample rate (Hz)
+    google-stt-api-key: "${GOOGLE_STT_API_KEY:}"          # Google Cloud STT API key
+    google-stt-language: "${GOOGLE_STT_LANGUAGE:en-US}"   # Google STT language code
+    google-stt-sample-rate: "${GOOGLE_STT_SAMPLE_RATE:16000}" # Google audio sample rate
+    google-stt-encoding: "${GOOGLE_STT_ENCODING:LINEAR16}"    # Google audio encoding
+    tts-url: "${VOICE_TTS_URL:}"                          # Custom TTS endpoint URL
+    openai-tts-model: "${OPENAI_TTS_MODEL:gpt-4o-mini-tts}"  # OpenAI TTS model
+    openai-tts-voice: "${OPENAI_TTS_VOICE:alloy}"         # OpenAI TTS voice preset
+    openai-tts-format: "${OPENAI_TTS_FORMAT:mp3}"
